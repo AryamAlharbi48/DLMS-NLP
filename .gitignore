@@ -1,0 +1,22 @@
+# Environment variables — NEVER upload this
+.env
+
+# Virtual environment
+.venv/
+venv/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Django
+db.sqlite3
+*.log
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# VS Code
+.vscode/

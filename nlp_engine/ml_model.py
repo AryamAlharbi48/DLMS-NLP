@@ -2,32 +2,39 @@ from transformers import AutoTokenizer, AutoModel
 import torch
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
-from ocr_integration import perform_ocr
+from nlp_engine.ocr_integration import perform_ocr
 
 model_name = "bert-base-multilingual-cased"
 
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModel.from_pretrained(model_name)
+# Lazy loading — model only loads when first needed, not at Django startup
+_tokenizer = None
+_model = None
+_reference_embeddings = None
 
-model.eval()   # مهم للإنتاج
+def get_tokenizer():
+    global _tokenizer
+    if _tokenizer is None:
+        _tokenizer = AutoTokenizer.from_pretrained(model_name)
+    return _tokenizer
 
+def get_model():
+    global _model
+    if _model is None:
+        _model = AutoModel.from_pretrained(model_name)
+        _model.eval()
+    return _model
 
 def preprocess(text):
-
     if not text:
         return ""
-
     return text.strip().lower()
 
-
-
 def get_embedding(text):
-
     text = preprocess(text)
-
     if not text:
         return np.zeros((1, 768))
-
+    tokenizer = get_tokenizer()
+    model = get_model()
     inputs = tokenizer(
         text,
         return_tensors="pt",
@@ -35,53 +42,36 @@ def get_embedding(text):
         padding=True,
         max_length=128
     )
-
     with torch.no_grad():
         outputs = model(**inputs)
-
     embeddings = outputs.last_hidden_state.mean(dim=1)
-
     return embeddings.numpy()
 
-
-
-
 reference_sensitive_texts = [
-
     "رقم هوية",
     "وثيقة رسمية",
     "صك ملكية",
     "حساب بنكي",
     "بطاقة بنكية",
     "عقد رسمي"
-
 ]
 
-
-
-# نحسبها مرة وحدة فقط
-reference_embeddings = np.vstack(
-    [get_embedding(text) for text in reference_sensitive_texts]
-)
-
-
+def get_reference_embeddings():
+    global _reference_embeddings
+    if _reference_embeddings is None:
+        _reference_embeddings = np.vstack(
+            [get_embedding(text) for text in reference_sensitive_texts]
+        )
+    return _reference_embeddings
 
 def ml_score(text):
-
     emb = get_embedding(text)
-
-    similarities = cosine_similarity(emb, reference_embeddings)
-
+    similarities = cosine_similarity(emb, get_reference_embeddings())
     max_score = float(np.max(similarities))
-
     return max_score
 
-
-
 def is_sensitive_ml(text, threshold=0.65):
-
     score = ml_score(text)
-
     if score >= threshold:
         return True, score
     else:

@@ -1,5 +1,5 @@
 from rapidfuzz import fuzz
-from ocr_integration import perform_ocr
+from nlp_engine.ocr_integration import perform_ocr
 
 
 SENSITIVE_KEYWORDS = [

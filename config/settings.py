@@ -1,15 +1,19 @@
 """
 Django settings for config project.
 """
-
 from pathlib import Path
+import environ
 
 # === Paths ===
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# === Load .env file ===
+env = environ.Env(DEBUG=(bool, True))
+environ.Env.read_env(BASE_DIR / '.env')
+
 # === Security ===
-SECRET_KEY = 'django-insecure-your-secret-key'
-DEBUG = True
+SECRET_KEY = env('SECRET_KEY')
+DEBUG = env('DEBUG')
 ALLOWED_HOSTS = []
 
 # === Installed Apps ===
@@ -21,13 +25,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
     # Third-party
     'rest_framework',
-
+    'channels',
     # Local apps
     'users',
+    'documents',
     'nlp_engine',
+    'notifications',
 ]
 
 # === Middleware ===
@@ -61,6 +66,14 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
+# === Channel Layers (for in-app notifications) ===
+ASGI_APPLICATION = 'config.asgi.application'
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
+}
+
 # === Database ===
 DATABASES = {
     'default': {
@@ -88,3 +101,23 @@ STATIC_URL = 'static/'
 
 # === Default primary key field type ===
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# === Email Settings ===
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = env('EMAIL_HOST')
+EMAIL_PORT = env.int('EMAIL_PORT')
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS')
+EMAIL_HOST_USER = env('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = f"DLMS System <{env('EMAIL_HOST_USER')}>"
+
+# === Twilio Settings ===
+TWILIO_SID = env('TWILIO_SID')
+TWILIO_TOKEN = env('TWILIO_TOKEN')
+TWILIO_PHONE = env('TWILIO_PHONE')
+
+# === DLMS Notification Settings ===
+APP_BASE_URL = env('APP_BASE_URL')
+INACTIVITY_THRESHOLD_DAYS = env.int('INACTIVITY_THRESHOLD_DAYS')
+GRACE_PERIOD_DAYS = env.int('GRACE_PERIOD_DAYS')
+VERIFICATION_EXPIRY_HOURS = env.int('VERIFICATION_EXPIRY_HOURS')
