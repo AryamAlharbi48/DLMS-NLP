@@ -12,13 +12,6 @@ logger = logging.getLogger(__name__)
 # ================================================================
 # INACTIVITY CHECK — runs every day at 9:00 AM
 # ================================================================
-# This is the core of your death verification flow from the report:
-#
-#   1. Monitor user inactivity
-#   2. Send warnings at 90, 30, 7 days before threshold
-#   3. If threshold exceeded with no response → assume deceased
-#   4. Trigger posthumous actions
-# ================================================================
 
 def run_inactivity_check():
     """
@@ -83,7 +76,7 @@ def _check_single_user(user):
 
     # ── WARNING CHECKPOINTS ───────────────────────────────────────
     # Send warnings at exactly 90, 30, and 7 days before threshold
-    # These match your report's 3-step verification process
+    
     if days_left in [90, 30, 7]:
         _send_warning(user, days_inactive, days_left)
 
