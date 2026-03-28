@@ -4,27 +4,38 @@ from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from .ocr_integration import perform_ocr
 
-model_name = "bert-base-multilingual-cased"
+# -------------------------------
+#  ( اخف)Hugging Face موديل من DistilBERT غيرت المودل ل
+# -------------------------------
+MODEL_NAME = "distilbert-base-multilingual-cased"
 
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModel.from_pretrained(model_name)
+tokenizer = None
+model = None
 
-model.eval()   # مهم للإنتاج
+def load_model():
+    """Load tokenizer and model only once (lazy loading)."""
+    global tokenizer, model
+    if tokenizer is None or model is None:
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+        model = AutoModel.from_pretrained(MODEL_NAME)
+        model.eval()
 
 
+# -------------------------------
+# دوال المعالجة
+# -------------------------------
 def preprocess(text):
-
+    """Clean and normalize text."""
     if not text:
         return ""
-
     return text.strip().lower()
 
 
-
 def get_embedding(text):
+    """Return embedding vector for a given text."""
+    load_model()  # 🔥 تأكد تحميل الموديل عند الحاجة فقط
 
     text = preprocess(text)
-
     if not text:
         return np.zeros((1, 768))
 
@@ -44,11 +55,11 @@ def get_embedding(text):
     return embeddings.numpy()
 
 
-
-
-reference_sensitive_texts = [
-      
-    "رقم هوية",
+# -------------------------------
+# بيانات مرجعية للنصوص الحساسة
+# -------------------------------
+REFERENCE_SENSITIVE_TEXTS = [
+        "رقم هوية",
 "رقم الهوية الوطنية",
 "هوية وطنية",
 "بطاقة الهوية",
@@ -101,32 +112,25 @@ reference_sensitive_texts = [
 "زكاة فطرة",
 "قضاء",
 "كفارات",
-
 ]
-# نحسبها مرة وحدة فقط
-reference_embeddings = np.vstack(
-    [get_embedding(text) for text in reference_sensitive_texts]
-)
+
+# حساب الـ embeddings مرة واحدة فقط عند أول استخدام
+load_model()
+REFERENCE_EMBEDDINGS = np.vstack([get_embedding(text) for text in REFERENCE_SENSITIVE_TEXTS])
 
 
-
+# -------------------------------
+# دوال الـ ML لحساسية النصوص
+# -------------------------------
 def ml_score(text):
-
+    """Compute maximum similarity score of text against sensitive references."""
     emb = get_embedding(text)
-
-    similarities = cosine_similarity(emb, reference_embeddings)
-
+    similarities = cosine_similarity(emb, REFERENCE_EMBEDDINGS)
     max_score = float(np.max(similarities))
-
     return max_score
 
 
-
 def is_sensitive_ml(text, threshold=0.65):
-
+    """Return True if text is sensitive based on similarity threshold."""
     score = ml_score(text)
-
-    if score >= threshold:
-        return True, score
-    else:
-        return False, score
+    return score >= threshold, score
